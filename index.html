@@ -1,67 +1,162 @@
 <!DOCTYPE html>
-<html lang='pt-BR'>
+<html lang="pt-BR">
 <head>
-  <meta charset='UTF-8'>
+  <meta charset="UTF-8">
+  <title>Carrossel de Banners</title>
+
+  <!-- ░░░ PARÂMETROS EDITÁVEIS ░░░ -->
+  <script>
+    // Lista de slides (troca as URLs pelos teus BIs / YouTube)
+    const SLIDES = [
+      { 
+        url: "https://app.powerbi.com/view?r=eyJrIjoiYjc4OTkyODAtZTA2NC00YjE5LWFiMDktMTcwOWY4ZmNiZDNhIiwidCI6IjQ2OGE3ZDg3LTM5ZGMtNDk5MC1iN2VjLTFmNjIzNjEwMDI1MiJ9&pageName=743a25d1b0074a83cad7", 
+        label: "Banner 1", 
+        tempo: 5000        // tempo normal (ms) quando NÃO foi clique
+      },
+      { 
+        url: "https://app.powerbi.com/view?r=eyJrIjoiYjc4OTkyODAtZTA2NC00YjE5LWFiMDktMTcwOWY4ZmNiZDNhIiwidCI6IjQ2OGE3ZDg3LTM5ZGMtNDk5MC1iN2VjLTFmNjIzNjEwMDI1MiJ9&pageName=30d03ce634bca05c4993", 
+        label: "Banner 2", 
+        tempo: 5000
+      }
+      // { url: "https://...", label: "Banner 3", tempo: 8000 }
+    ];
+
+    // Tempo que fica travado no slide depois de clicar (20s)
+    const CLICK_PAUSE_MS = 20000;
+
+    // Altura da faixa das bolinhas em pixels
+    const DOTS_HEIGHT_PX = 60;
+  </script>
+  <!-- ░░░ FIM PARÂMETROS EDITÁVEIS ░░░ -->
+
   <style>
-    body, html { margin:0; padding:0; height:100%; width:100%; overflow:hidden; }
-    #frame { width:100%; height:90%; border:none; }
-    #dots { width:100%; height:10%; display:flex; justify-content:center; align-items:center; background:#f9f9f9; }
-    .dot { width:12px; height:12px; margin:0 6px; background:#bbb; border-radius:50%; cursor:pointer; transition: background 0.3s; }
-    .dot.active { background:#444; }
+    :root {
+      --dots-height: 60px; /* vai ser sincronizado com DOTS_HEIGHT_PX no onload */
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      font-family: sans-serif;
+      box-sizing: border-box;
+    }
+
+    /* Carrossel em cima */
+    #controlDots {
+      width: 100%;
+      height: var(--dots-height);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #f9f9f9;
+    }
+
+    .dot {
+      width: 14px;
+      height: 14px;
+      margin: 0 8px;
+      background: #bbb;
+      border-radius: 50%;
+      display: inline-block;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .dot:hover {
+      transform: scale(1.1);
+    }
+
+    .dot.active {
+      background: #444;
+    }
+
+    /* Iframe embaixo ocupando o resto */
+    #frameContainer {
+      width: 100%;
+      height: calc(100vh - var(--dots-height));
+      box-sizing: border-box;
+    }
+
+    #slideFrame {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
   </style>
 </head>
 <body>
-  <iframe id='frame' src='' ></iframe>
-  <div id='dots'></div>
+
+  <!-- Carrossel em cima -->
+  <div id="controlDots"></div>
+
+  <!-- Iframe embaixo -->
+  <div id="frameContainer">
+    <iframe id="slideFrame" src=""></iframe>
+  </div>
 
   <script>
-    // → PARÂMETROS EDITÁVEIS (coloque novo link, label, tempo em ms)
-    const slides = [
-      { url: 'https://app.powerbi.com/view?r=eyJrIjoiYjc4OTkyODAtZTA2NC00YjE5LWFiMDktMTcwOWY4ZmNiZDNhIiwidCI6IjQ2OGE3ZDg3LTM5ZGMtNDk5MC1iN2VjLTFmNjIzNjEwMDI1MiJ9&pageName=743a25d1b0074a83cad7', label: 'Banner 1', tempo: 5000 },
-      { url: 'https://app.powerbi.com/view?r=eyJrIjoiYjc4OTkyODAtZTA2NC00YjE5LWFiMDktMTcwOWY4ZmNiZDNhIiwidCI6IjQ2OGE3ZDg3LTM5ZGMtNDk5MC1iN2VjLTFmNjIzNjEwMDI1MiJ9&pageName=30d03ce634bca05c4993', label: 'Banner 2', tempo: 5000 }
-    ];
-    // ← fim dos parâmetros
-
+    let slides = SLIDES;
     let currentIndex = 0;
     let timer;
 
-    function buildDots(){
-      const d = document.getElementById('dots');
-      slides.forEach((s,i)=>{
-        const dot = document.createElement('span');
-        dot.classList.add('dot');
-        dot.title = s.label;
-        dot.addEventListener('click', ()=>{
-          goToSlide(i);
+    function buildDots() {
+      const container = document.getElementById("controlDots");
+      container.innerHTML = "";
+      slides.forEach((slide, i) => {
+        const dot = document.createElement("span");
+        dot.classList.add("dot");
+        dot.title = slide.label;
+        dot.addEventListener("click", () => {
+          // Clique = trava 20s naquele slide
+          goToSlide(i, true);
         });
-        d.appendChild(dot);
+        container.appendChild(dot);
       });
     }
 
-    function updateDots(){
-      const dots = document.querySelectorAll('.dot');
-      dots.forEach((dot,i)=>{
-        dot.classList.toggle('active', i === currentIndex);
+    function updateDots() {
+      const dots = document.querySelectorAll(".dot");
+      dots.forEach((d, i) => {
+        d.classList.toggle("active", i === currentIndex);
       });
     }
 
-    function startSlide(index){
+    // overrideDurationMs = duração específica (ex: clique)
+    function startSlide(index, overrideDurationMs) {
+      if (!slides || slides.length === 0) return;
+
       currentIndex = index;
       const slide = slides[currentIndex];
-      document.getElementById('frame').src = slide.url;
+
+      const iframe = document.getElementById("slideFrame");
+      iframe.src = slide.url;
+
       updateDots();
+
       clearTimeout(timer);
-      timer = setTimeout(()=>{
-        const next = (currentIndex + 1) % slides.length;
-        startSlide(next);
-      }, slide.tempo);
+
+      const duration = overrideDurationMs != null ? overrideDurationMs : slide.tempo;
+
+      timer = setTimeout(() => {
+        const nextIndex = (currentIndex + 1) % slides.length;
+        startSlide(nextIndex);
+      }, duration);
     }
 
-    function goToSlide(index){
-      startSlide(index);
+    function goToSlide(index, isClick) {
+      if (isClick) {
+        startSlide(index, CLICK_PAUSE_MS);
+      } else {
+        startSlide(index);
+      }
     }
 
-    window.onload = ()=>{
+    window.onload = () => {
+      // sincroniza CSS com o valor do JS
+      document.documentElement.style.setProperty('--dots-height', DOTS_HEIGHT_PX + 'px');
       buildDots();
       startSlide(0);
     };
