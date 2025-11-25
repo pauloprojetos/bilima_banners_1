@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Carrossel de Banners</title>
+  <style>
+    body, html { margin:0; padding:0; height:100%; width:100%; background:#fff; }
+    #iframeContainer { width:100%; height:90%; border:none; }
+    #controlDots { width:100%; height:10%; display:flex; justify-content:center; align-items:center; background:#f9f9f9; }
+    .dot { width:14px; height:14px; margin:0 8px; background:#bbb; border-radius:50%; display:inline-block; cursor:pointer; transition: background 0.3s; }
+    .dot.active { background:#444; }
+  </style>
+</head>
+<body>
+
+  <iframe id="slideFrame" src="" frameborder="0" style="width:100%; height:90%;"></iframe>
+  <div id="controlDots"></div>
+
+  <script>
+    const configUrl = 'https://raw.githubusercontent.com/SEU_USUARIO/SEU_REPO/main/slides.json'; // ajuste
+    let slides = [];
+    let currentIndex = 0;
+    let timer;
+
+    function loadConfig() {
+      fetch(configUrl)
+        .then(res => {
+          if (!res.ok) throw new Error('Erro ao carregar config: ' + res.status);
+          return res.json();
+        })
+        .then(data => {
+          slides = data;
+          if (slides.length === 0) return;
+          buildDots();
+          startSlide(0);
+        })
+        .catch(err => {
+          console.error(err);
+          document.getElementById('controlDots').innerHTML = '<p>Erro carregando banners.</p>';
+        });
+    }
+
+    function buildDots() {
+      const container = document.getElementById('controlDots');
+      slides.forEach((s,i) => {
+        const dot = document.createElement('span');
+        dot.classList.add('dot');
+        dot.title = s.label;
+        dot.addEventListener('click', () => {
+          goToSlide(i);
+        });
+        container.appendChild(dot);
+      });
+    }
+
+    function updateDots() {
+      const dots = document.querySelectorAll('.dot');
+      dots.forEach((d,i) => {
+        d.classList.toggle('active', i === currentIndex);
+      });
+    }
+
+    function startSlide(index) {
+      currentIndex = index;
+      const slide = slides[currentIndex];
+      const iframe = document.getElementById('slideFrame');
+      iframe.src = slide.url;
+      updateDots();
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const nextIndex = (currentIndex + 1) % slides.length;
+        startSlide(nextIndex);
+      }, slide.tempo);
+    }
+
+    function goToSlide(index) {
+      startSlide(index);
+    }
+
+    window.onload = loadConfig;
+  </script>
+
+</body>
+</html>
